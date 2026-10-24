@@ -37,7 +37,7 @@ def health_check():
     if isinstance(ai_service, GemmaAIService):
         model = ai_service.model
         provider = "gemma"
-        display = f"Gemma 4 Connected ({model})"
+        display = f"Gemma 4 Configured ({model})"
     elif isinstance(ai_service, GeminiAIService):
         model = ai_service.model
         provider = "gemini"

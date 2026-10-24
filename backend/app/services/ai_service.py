@@ -2,15 +2,15 @@ import io
 import json
 import logging
 import os
-import re
-import time
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Optional
 
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from app.schemas.detection import BoundingBox, DetectionResult
 
@@ -127,7 +127,7 @@ def _downscale_image_for_gemma(image_bytes: bytes, max_dim: int = _GEMMA_MAX_DIM
     try:
         from PIL import Image
 
-        img = Image.open(io.BytesIO(image_bytes))
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         if max(img.size) > max_dim:
             scale = max_dim / max(img.size)
             new_size = (int(img.size[0] * scale), int(img.size[1] * scale))
@@ -146,22 +146,22 @@ def _extract_json_from_text(text: str) -> dict:
     Extract a JSON object from model output, stripping markdown code fences
     and other surrounding text if present.
     """
-    # Strip markdown code fences (```json ... ```)
-    stripped = re.sub(r"```(?:json)?\s*", "", text).strip()
-    stripped = stripped.rstrip("`").strip()
+    if not text or not text.strip():
+        raise ValueError("Empty response received from Gemma model.")
 
-    # Try to find the first { ... } block if there's surrounding text
-    match = re.search(r"\{.*\}", stripped, re.DOTALL)
-    if match:
-        stripped = match.group(0)
+    # raw_decode ignores trailing prose/fences and respects braces inside strings.
+    start = text.find("{")
+    if start < 0:
+        raise ValueError("Gemma response contains no JSON object.")
+    result, _ = json.JSONDecoder().raw_decode(text[start:])
+    return result
 
-    return json.loads(stripped)
 
 
 class GemmaAIService(BaseAIService):
     """
     Adapter for Google Gemma 4 Multimodal API using official `google-genai` SDK.
-    Uses gemma-4-31b-it as primary model, gemma-4-26b-a4b-it as fallback.
+    Uses the configured Gemma model without switching models.
     Images are downscaled to 400px max to avoid API 500 errors on large payloads.
 
     IMPORTANT: If the configured model ID is invalid/unavailable, the exact API
@@ -170,7 +170,6 @@ class GemmaAIService(BaseAIService):
     """
 
     PRIMARY_MODEL = "gemma-4-31b-it"
-    FALLBACK_MODEL = "gemma-4-26b-a4b-it"
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
@@ -183,7 +182,7 @@ class GemmaAIService(BaseAIService):
                 self._client = genai.Client(api_key=self.api_key)
                 logger.info(f"GemmaAIService initialised with model={self.model}")
             except Exception as e:
-                logger.error(f"Failed to initialize Google GenAI client: {e}")
+                logger.error("Failed to initialize Google GenAI client: %s", type(e).__name__)
 
     def _build_prompt(self, instruction: str) -> str:
         return (
@@ -211,9 +210,7 @@ class GemmaAIService(BaseAIService):
 
     async def locate_element(self, image_bytes: bytes, instruction: str) -> DetectionResult:
         if not self._client or not self.api_key:
-            logger.info("GEMINI_API_KEY not configured. Using MockAIService.")
-            mock = MockAIService()
-            return await mock.locate_element(image_bytes, instruction)
+            raise RuntimeError("Gemma client unavailable. Check GEMINI_API_KEY and google-genai installation; set LOOKDO_AI_PROVIDER=mock for an explicit mock demo.")
 
         from google.genai import types
 
@@ -224,8 +221,6 @@ class GemmaAIService(BaseAIService):
 
         # Build ordered list of models to attempt (deduplicated)
         models_to_try = [self.model]
-        if self.FALLBACK_MODEL != self.model:
-            models_to_try.append(self.FALLBACK_MODEL)
 
         last_error: Exception = None
         for model_id in models_to_try:
@@ -233,18 +228,27 @@ class GemmaAIService(BaseAIService):
             for attempt in range(2):
                 try:
                     logger.info(f"Calling Gemma model: {model_id} (attempt {attempt + 1})")
-                    response = self._client.models.generate_content(
-                        model=model_id,
-                        contents=[image_part, prompt],
-                    )
-
-                    if not response.text:
-                        raise ValueError("Empty response received from Gemma model.")
-
-                    result_data = _extract_json_from_text(response.text)
-                    result = DetectionResult.model_validate(result_data)
-                    logger.info(f"Gemma {model_id} succeeded: {result.element_label}")
-                    return result
+                    for parse_attempt in range(2):
+                        request_prompt = prompt
+                        if parse_attempt:
+                            request_prompt += "\nReturn valid JSON only, no markdown or explanation outside JSON."
+                        response = await self._client.aio.models.generate_content(
+                            model=model_id,
+                            contents=[image_part, request_prompt],
+                        )
+                        try:
+                            result_data = _extract_json_from_text(response.text)
+                            result = DetectionResult.model_validate(result_data)
+                        except ValueError:
+                            # Do not log model output or validation errors: they can contain input.
+                            logger.warning("Gemma response parsing failed (attempt %s)", parse_attempt + 1)
+                            if parse_attempt == 0:
+                                continue
+                            result = await MockAIService().locate_element(image_bytes, instruction)
+                            result.explanation = "[Mock fallback: invalid Gemma response] " + result.explanation
+                            return result
+                        logger.info(f"Gemma {model_id} succeeded: {result.element_label}")
+                        return result
 
                 except Exception as e:
                     err_str = str(e)
@@ -255,18 +259,18 @@ class GemmaAIService(BaseAIService):
                         f"Gemma {model_id} attempt {attempt + 1} failed: "
                         f"{type(e).__name__}: {err_str}"
                     )
-                    last_error = e
+                    last_error = f"{type(e).__name__}: {err_str}"
                     # Only retry on transient server errors
                     is_transient = "500" in err_str or "503" in err_str or "UNAVAILABLE" in err_str or "INTERNAL" in err_str
                     if is_transient and attempt == 0:
-                        time.sleep(2)
+                        await asyncio.sleep(2)
                         continue
                     break  # Non-transient or second attempt failed → try next model
 
         # All models and retries exhausted — raise exact error, no silent mock fallback
         raise RuntimeError(
             f"Gemma API call failed on all attempted models. "
-            f"Last error: {type(last_error).__name__}: {str(last_error)}"
+            f"Last error: {last_error}"
         )
 
 
@@ -286,7 +290,7 @@ class GeminiAIService(BaseAIService):
                 from google import genai
                 self._client = genai.Client(api_key=self.api_key)
             except Exception as e:
-                logger.error(f"Failed to initialize Google GenAI client: {e}")
+                logger.error("Failed to initialize Google GenAI client: %s", type(e).__name__)
 
     async def locate_element(self, image_bytes: bytes, instruction: str) -> DetectionResult:
         if not self._client or not self.api_key:
