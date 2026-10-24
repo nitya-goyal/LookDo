@@ -1,81 +1,173 @@
-# LookDo
+# LookDo 👁️
 
-An accessibility-focused multimodal AI assistant that highlights the interface element you want to use.
+### Multimodal UI Navigation & Element Locator
+
+LookDo uses Gemma 4 to understand a user interface screenshot together with natural-language intent, identify the UI element the user means, and visually highlight it.
+
+**Tell LookDo what you want to do. It finds where to do it.**
 
 ## Problem
-Users may know what they want to do but struggle to identify the right button, icon, or link in an unfamiliar interface.
+
+Modern interfaces can be visually dense and difficult to navigate, especially for users who do not know where an action is located or find precise navigation difficult.
 
 ## Solution
-Upload or paste a screenshot and describe your intent. LookDo locates the target, draws a bounding-box highlight, and explains the suggested action. Two built-in sample interfaces make it easy to try.
 
-## Why Gemma 4
-Gemma 4 performs **visual-semantic grounding**: connecting visible screenshot content with the user's intent and locating the matching element. It does more than generate text: its coordinates drive the highlight. LookDo uses the open-weight Gemma family through Google's hosted API, defaulting to `gemma-4-31b-it`; this demo does not run model weights locally.
+The user provides:
+
+- A screenshot
+- Natural-language intent
+
+For example:
+
+- “Open settings”
+- “Where do I download this?”
+- “How do I change my password?”
+
+LookDo uses multimodal AI to ground that intent to a visible interface element and highlights the result, with a reason and suggested action.
 
 ## Architecture
-```text
-Screenshot + user intent
-  → React frontend
-  → FastAPI backend
-  → Gemma 4 multimodal reasoning
-  → structured JSON: label / type / bounding box / confidence / action
-  → React bounding-box overlay
+
+```mermaid
+flowchart TD
+    U["User: Screenshot + Intent"] --> F["React + Vite Frontend"]
+    F --> P["POST /api/locate"]
+    P --> B["FastAPI Backend"]
+    B --> G["Gemma 4: Visual-Semantic Grounding"]
+    G --> J["Validated Structured JSON: label / type / bounding box / confidence / reason / action"]
+    J --> O["React Bounding Box Overlay"]
+    G -->|"Transient API / JSON error or timeout"| R["20-second attempt timeout; at most one same-model retry"]
+    R -->|"Retry succeeds"| J
+    R -->|"Inference still unavailable"| S{"Built-in sample?"}
+    S -->|"Yes"| M["Explicitly labeled mock fallback"]
+    M --> O
+    S -->|"No: uploaded screenshot"| E["Live Gemma inference unavailable — please retry; no mock box"]
 ```
 
-`POST /api/locate` accepts multipart `image` and `instruction` fields. Its response contains `element_label`, `element_type`, `bounding_box`, `confidence`, `explanation`, `suggested_action`, and `source`. Coordinates are normalized between 0 and 1; the source distinguishes live inference from mock results.
+The backend sends image and instruction together, validates the returned structure, and normalizes the result for rendering. The UI has a 50-second loading deadline. Retries never switch models. Non-retryable API failures go directly to the same sample-only fallback/error decision.
+
+## Why Gemma 4?
+
+Gemma is not used merely to generate text. It receives:
+
+- The screenshot
+- The user's natural-language intent
+
+Its role is **visual-semantic grounding**: understanding which visible UI element best matches what the user means and locating it within the screenshot. The frontend only renders the structured result returned by the backend.
+
+The judging/demo model configuration is **`gemma-4-26b-a4b-it`**, selected with `LOOKDO_GEMMA_MODEL` in the launch instructions below. The repository's unchanged code default is `gemma-4-31b-it` if no override is set. LookDo uses Google's hosted API for the open-weight Gemma family; it does not run the model weights locally.
+
+## Structured output
+
+Conceptual result example:
+
+```json
+{
+  "label": "Settings",
+  "element_type": "button",
+  "bounding_box": {
+    "left": 0.88,
+    "top": 0.03,
+    "right": 0.96,
+    "bottom": 0.08
+  },
+  "confidence": 0.94,
+  "reason": "The Settings button matches the requested action.",
+  "suggested_action": "Open Settings"
+}
+```
+
+Coordinates are normalized from 0 to 1 so overlays remain aligned when screenshots are resized. The existing API uses `element_label` for `label` and `explanation` for `reason`, adds computed box `width`/`height`, and includes a `source` field (`gemma`, `mock`, or the legacy optional `gemini` provider). The result card explicitly identifies live Gemma versus mock/fallback coordinates. Confidence is a model estimate, not a calibrated probability.
 
 ## Tech stack
-- React, Vite, CSS, Lucide icons
-- Python, FastAPI, Pydantic, Pillow
-- Google Gen AI SDK and Gemma 4
+
+| Area | Technologies / safeguards |
+| --- | --- |
+| Frontend | React, Vite |
+| Backend | Python, FastAPI, Pydantic, Pillow |
+| AI | Gemma 4, Google GenAI SDK |
+| Reliability | Request timeout, bounded retry, validated structured output, transparent fallback for built-in samples |
 
 ## How it works
-1. Select a sample, upload an image, or paste a screenshot with Ctrl+V.
-2. Enter a natural-language instruction.
-3. The backend resizes the screenshot to a maximum 400-pixel edge and sends image and text together to Gemma 4.
-4. It parses and validates JSON, including coordinates.
-5. React draws the highlight and displays the explanation, action, and result source.
 
-Each Gemma attempt has a 20-second timeout. Transient API, timeout, or JSON errors receive at most one retry on the **same model**; SDK retries are disabled. Failed live inference returns clearly labeled mock coordinates. The UI stops waiting after 50 seconds with a retry message if the backend cannot be reached.
+1. **See** — upload/paste an interface screenshot.
+2. **Ask** — describe what you want to do.
+3. **Understand** — Gemma 4 combines visual and language context.
+4. **Locate** — LookDo highlights the intended element.
 
-## Demo instructions
-Prerequisites: Python 3.10+ and Node.js 18+. Store the key only in ignored `backend/.env`, never in frontend code or Git.
+## Demo
 
-Backend, from the repository root:
+**Primary demo:** select **Software Portal**, use **“Open settings”**, and click **Locate Element**. Show the highlight and the result-source label.
+
+**Secondary demo:** on the same sample, ask **“Where do I download this?”**.
+
+The second built-in sample, **Settings Console**, remains available with its password-change example. Uploaded real-world screenshots are also supported through upload, drag-and-drop, or Ctrl+V paste. If live inference fails for an upload, LookDo shows a retry message and draws no predefined mock box. Built-in samples alone can use labeled mock fallback.
+
+### Run locally
+
+Prerequisites: Python 3.10+ and Node.js 18+. From the repository root, start the backend in PowerShell:
+
 ```powershell
 cd backend
 python -m pip install -r requirements.txt
-# In backend/.env: GEMINI_API_KEY=<your key>
-# Optional: LOOKDO_AI_PROVIDER=gemma
+# First-time setup only: copy .env.example to .env if .env does not exist.
+# Put your own GEMINI_API_KEY in backend/.env. Never commit the key.
+$env:LOOKDO_AI_PROVIDER="gemma"
+$env:LOOKDO_GEMMA_MODEL="gemma-4-26b-a4b-it"
 python -m uvicorn app.main:app --port 8000
 ```
 
-Frontend, in a second terminal from the repository root:
+In a second terminal from the repository root:
+
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173. Install dependencies only on first setup or when they change.
+Open [LookDo](http://localhost:5173). Dependencies only need installing on first setup or when they change. API documentation is available at [FastAPI docs](http://localhost:8000/docs).
 
-1. Select **Software Portal**. The recommended command is **Open settings**.
-2. Click **Locate Element**; show the Settings highlight and the result source.
-3. Enter **Where do I download this?**; show the download button highlight.
-4. **Settings Console** remains available with its password-change example.
+For an intentional offline demonstration of the built-in samples, set `LOOKDO_AI_PROVIDER=mock` before starting the backend. The header shows the configured provider; the result card reports the actual result source.
 
-For an explicit offline demo, set `LOOKDO_AI_PROVIDER=mock` before starting the backend. The header reports the configured provider; the result card identifies each actual result as live or mock/fallback.
+### Offline validation
+
+These commands do not send Gemma API requests:
+
+```powershell
+# From the repository root:
+python -m compileall -q backend/app
+cd backend
+python -m unittest test_demo_reliability
+cd ../frontend
+npm run build
+```
+
+`test_demo_reliability.py` covers both demo commands, same-model retry limits, timeout enforcement, and sample-only mock responses. The other retained tests are manual/live integration checks; do not run them as part of offline validation.
 
 ## Current limitations
-- Hosted inference needs internet, model access, and quota; availability and latency vary.
-- Small text and icons lose detail during downscaling. Coordinates may be inaccurate; confidence is not calibrated.
-- Mock fallback uses keyword-based predefined demo coordinates and cannot locate elements in arbitrary screenshots.
-- LookDo highlights static screenshots and suggests actions; it does not click or control the computer.
-- Screenshots are sent to the hosted model provider. Avoid sensitive content.
+
+- Dense interfaces and very small controls can reduce grounding accuracy, especially after the backend resizes images to a maximum 400-pixel edge.
+- Model latency and availability can vary; hosted inference requires internet access and quota.
+- The MVP identifies and highlights targets but does not automatically click them.
+- Mock fallback is explicitly labeled and intended only for built-in demos; its predefined coordinates do not analyze the screenshot.
 - Accessibility benefits need broader usability validation.
 
-## Future roadmap
-Planned concepts only, not implemented in this MVP:
-- **Guide Me** step-by-step mode
-- Voice input
-- MediaPipe rough gaze/head direction
-- Combining gaze with **“look at it and say open that”**
+## Roadmap — FUTURE WORK
+
+These are planned concepts, **not implemented features**:
+
+- **Guide Me** — step-by-step interface navigation
+- Voice commands
+- MediaPipe rough gaze/head-direction input
+- Combine gaze + speech: look toward something and say “open that”
+- DOM/OCR-assisted grounding for higher coordinate precision
+- Optional browser extension / direct interaction
+
+## Open source
+
+LookDo is released under the [MIT License](LICENSE). The application license does not relicense Gemma model weights or the hosted API; their respective terms apply.
+
+## Security
+
+- `.env` files are ignored by Git. `.env.example` is a configuration template without credentials.
+- Keep API keys in the backend environment; never place them in frontend code, test fixtures, or documentation.
+- Screenshots are sent to the hosted model provider. Avoid uploading sensitive content.

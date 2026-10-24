@@ -4,11 +4,29 @@ import json
 import unittest
 from types import SimpleNamespace as NS
 from unittest.mock import AsyncMock, patch
+import io
+from fastapi import HTTPException, UploadFile
+from app.routes.locate import locate_element
 
 from app.services.ai_service import GemmaAIService, MockAIService
 
 
 class DemoReliabilityTests(unittest.IsolatedAsyncioTestCase):
+    async def test_mock_boxes_only_returned_for_built_in_samples(self):
+        for sample_id in ('software-portal', 'account-settings', '', 'unknown'):
+            with self.subTest(sample_id=sample_id):
+                with patch('app.routes.locate.get_ai_service', return_value=MockAIService()):
+                    # Filename alone never grants sample fallback.
+                    image = UploadFile(filename='software-portal.png', file=io.BytesIO(b'image'))
+                    if sample_id in ('software-portal', 'account-settings'):
+                        result = await locate_element(instruction='Open settings', image=image, sample_id=sample_id)
+                        self.assertEqual(result.source, 'mock')
+                    else:
+                        with self.assertRaises(HTTPException) as caught:
+                            await locate_element(instruction='Open settings', image=image, sample_id=sample_id)
+                        self.assertEqual(caught.exception.status_code, 503)
+                        self.assertEqual(caught.exception.detail, 'Live Gemma inference unavailable — please retry')
+
     async def test_both_demo_commands(self):
         for instruction in ('Open settings', 'Where do I download this?'):
             payload = (await MockAIService().locate_element(b'', instruction)).model_dump()

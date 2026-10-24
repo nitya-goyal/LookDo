@@ -9,6 +9,7 @@ router = APIRouter(prefix="/api", tags=["LookDo Locate"])
 async def locate_element(
     instruction: str = Form(..., description="Natural language intent/instruction from the user"),
     image: UploadFile = File(..., description="Screenshot image file"),
+    sample_id: str = Form("", description="Built-in sample identifier; empty for uploads"),
 ):
     """
     Locates the most likely UI element described by the user's instruction in the provided screenshot.
@@ -38,7 +39,14 @@ async def locate_element(
     ai_service = get_ai_service()
     try:
         result = await ai_service.locate_element(image_bytes=image_bytes, instruction=instruction)
+        if result.source == "mock" and sample_id not in ("software-portal", "account-settings"):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Live Gemma inference unavailable — please retry",
+            )
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

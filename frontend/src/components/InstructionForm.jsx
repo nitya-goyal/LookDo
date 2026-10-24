@@ -48,7 +48,7 @@ export default function InstructionForm({
 
   const handleLoadSample = async (type, defaultPrompt) => {
     const file = await createSampleImageBlob(type);
-    onFileSelect(file);
+    onFileSelect(file, type);
     if (defaultPrompt) {
       onInstructionChange(defaultPrompt);
     }

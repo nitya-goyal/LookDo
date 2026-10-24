@@ -6,6 +6,7 @@ import ExplanationCard from './components/ExplanationCard';
 
 export default function App() {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [sampleId, setSampleId] = useState('');
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [instruction, setInstruction] = useState('Open settings');
   const [detection, setDetection] = useState(null);
@@ -69,8 +70,9 @@ export default function App() {
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
-  const handleFileSelect = (file) => {
+  const handleFileSelect = (file, builtInSampleId = '') => {
     setSelectedFile(file);
+    setSampleId(builtInSampleId);
     setError(null);
     setDetection(null);
 
@@ -102,6 +104,7 @@ export default function App() {
       const formData = new FormData();
       formData.append('image', selectedFile);
       formData.append('instruction', instruction.trim());
+      formData.append('sample_id', sampleId);
 
       // Attempt endpoint via proxy, fallback to direct port 8000 if needed
       let res;
