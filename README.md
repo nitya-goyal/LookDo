@@ -6,6 +6,25 @@ LookDo uses Gemma 4 to understand a user interface screenshot together with natu
 
 **Tell LookDo what you want to do. It finds where to do it.**
 
+## Real-World Live Demo
+
+![LookDo real-world GitHub Guide Me demo](assets/demo-github-issues.png)
+
+This successful run used a **real GitHub repository page**, not a built-in LookDo sample.
+
+| Demonstrated flow | Observed result |
+| --- | --- |
+| Interface | Real LookDo GitHub repository page |
+| Input | Voice, captured as text with browser SpeechRecognition |
+| Mode / user intent | Guide Me / “Where are the issues?” |
+| Model / source | **Gemma 4 live inference — not fallback** |
+| Target | Correctly identified the visible **Issues** tab (link) |
+| Confidence shown by the app | **100%** for this run; not a claim of perfect accuracy |
+| Next step returned | **Click on Issues**, displayed as “Step 1: Click on Issues” |
+| Highlight | Target highlighted using normalized bounding-box coordinates |
+
+Gemma 4 combined the screenshot and recognized intent to perform visual-semantic grounding. The returned box was left `0.070`, top `0.070`, right `0.120`, bottom `0.110`. This is an observed successful demo, not a guarantee of future accuracy or endpoint availability.
+
 ## Problem
 
 Modern interfaces can be visually dense and difficult to navigate, especially for users who do not know where an action is located or find precise navigation difficult.
@@ -31,15 +50,23 @@ LookDo uses multimodal AI to ground that intent to a visible interface element a
 
 - Screenshot upload/paste
 - Natural-language intent
-- Voice input (voice-to-intent)
+- Voice intent capture
+- Locate Element mode
 - Guide Me mode — one next visible action, without conversation memory
-- Gemma 4 multimodal grounding
+- Gemma 4 multimodal visual-semantic grounding
+- Experimental rough Attention Context using LEFT / CENTER / RIGHT head direction
 - Normalized bounding-box highlighting
 - Structured explanation
 - Timeout/retry handling
 - Transparent fallback for built-in samples
 
 Browser `SpeechRecognition` (including Chromium's `webkitSpeechRecognition` prefix) converts speech into the existing intent field. Voice is an input method, not the AI reasoning layer: **Gemma 4 still performs the multimodal visual-semantic grounding**. Typed input remains supported. Recognition never submits automatically; review the text and click **Locate Element** or **Guide Me**. Unsupported browsers retain typed input, and microphone or recognition errors are shown without blocking typing.
+
+### Input and reasoning roles
+
+- **Voice** = browser SpeechRecognition capturing intent as text; typed input remains supported.
+- **Gemma 4** = multimodal reasoning and visual-semantic grounding using the screenshot and intent together.
+- **Attention Context** = an optional, experimental LEFT / CENTER / RIGHT spatial signal from rough head direction, **not precise eye tracking**. It provides extra evidence for Locate mode only and does not change Guide Me semantics. Camera/model failure leaves the normal text/voice flow available.
 
 ## Architecture
 
@@ -123,24 +150,6 @@ Gemma 4 → identifies the Issues tab
 LookDo → highlights Issues and returns Step 1: Click on Issues
 ```
 
-## Real-world demo
-
-A successful live Guide Me run used a screenshot of the **real LookDo GitHub repository page**, not either predefined sample interface.
-
-| Input / result | Observed demo |
-| --- | --- |
-| Input method | Voice via browser SpeechRecognition |
-| Mode / intent | Guide Me / “Where are the issues?” |
-| Result source | **Gemma 4 · Live result — not fallback** |
-| Target | Issues (link) |
-| Displayed confidence | 100% (model-reported for this run, not an accuracy guarantee) |
-| Next step | **Step 1: Click on Issues** |
-| Normalized box | left `0.070`, top `0.070`, right `0.120`, bottom `0.110` |
-
-The returned bounding box correctly highlighted the Issues tab in this demo. Browser SpeechRecognition converted speech into text; **Gemma 4 performed the actual visual-semantic grounding** using the screenshot and intent together.
-
-![Live LookDo Guide Me demo: voice intent locates and highlights the GitHub Issues tab, with Step 1 and a Gemma 4 live-result label](docs/images/guide-me-github.png)
-
 ## Demo
 
 **Primary demo:** select **Software Portal**, use **“Open settings”**, and click **Locate Element**. Show the highlight and the result-source label.
@@ -192,6 +201,12 @@ npm run build
 
 `test_demo_reliability.py` covers both demo commands, same-model retry limits, timeout enforcement, and sample-only mock responses. The other retained tests are manual/live integration checks; do not run them as part of offline validation.
 
+## Reliability / External Model Availability
+
+LookDo has bounded timeout and retry handling. The **external Gemma inference endpoint** can occasionally return transient timeouts, HTTP 503 responses, or other server errors. These external availability failures do not by themselves indicate a LookDo application defect; model availability is not guaranteed.
+
+LookDo exposes unsuccessful inference honestly rather than presenting it as successful live AI output. For uploaded real-world screenshots it shows a retry state without a predefined mock box. Built-in sample fallback is **explicitly labeled** when used.
+
 ## Current limitations
 
 - Dense interfaces and very small controls can reduce grounding accuracy, especially after the backend resizes images to a maximum 400-pixel edge.
@@ -205,7 +220,7 @@ npm run build
 These are planned concepts, **not implemented features**:
 
 - Extended step-by-step guidance beyond the implemented single-step Guide Me mode
-- MediaPipe rough gaze/head-direction input
+- Improved gaze/spatial context beyond the experimental rough head-direction signal
 - Combine gaze + speech: look toward something and say “open that”
 - DOM/OCR-assisted grounding for higher coordinate precision
 - Browser action execution / optional browser extension
