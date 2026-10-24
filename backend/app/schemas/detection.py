@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, model_validator
-from typing import Optional
+from typing import Literal, Optional
 
 
 class BoundingBox(BaseModel):
@@ -33,6 +33,7 @@ class DetectionResult(BaseModel):
     """
     Structured outcome returned by LookDo AI service.
     """
+    source: Literal["gemma", "gemini", "mock"] = "mock"
     element_label: str = Field(..., description="Human-readable label of the identified element")
     element_type: str = Field(..., description="Type of the UI element (e.g. button, input, link, icon, menu)")
     bounding_box: BoundingBox = Field(..., description="Normalized coordinates of the bounding box")

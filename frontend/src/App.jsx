@@ -7,7 +7,7 @@ import ExplanationCard from './components/ExplanationCard';
 export default function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
-  const [instruction, setInstruction] = useState('where do I download this?');
+  const [instruction, setInstruction] = useState('Open settings');
   const [detection, setDetection] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -94,6 +94,9 @@ export default function App() {
 
     setIsLoading(true);
     setError(null);
+    setDetection(null);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 50000);
 
     try {
       const formData = new FormData();
@@ -106,12 +109,15 @@ export default function App() {
         res = await fetch('/api/locate', {
           method: 'POST',
           body: formData,
+          signal: controller.signal,
         });
       } catch (networkErr) {
+        if (controller.signal.aborted) throw networkErr;
         // Fallback direct request
         res = await fetch('http://127.0.0.1:8000/api/locate', {
           method: 'POST',
           body: formData,
+          signal: controller.signal,
         });
       }
 
@@ -124,8 +130,11 @@ export default function App() {
       setDetection(data);
     } catch (err) {
       console.error('Locate API Error:', err);
-      setError(err.message || 'Failed to analyze interface. Please check backend connection.');
+      setError(controller.signal.aborted
+        ? 'Request timed out. Please try again or check the backend connection.'
+        : err.message || 'Failed to analyze interface. Please check backend connection.');
     } finally {
+      clearTimeout(timeout);
       setIsLoading(false);
     }
   };

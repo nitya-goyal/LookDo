@@ -3,8 +3,8 @@ import { UploadCloud, Sparkles, Image as ImageIcon, CornerDownLeft } from 'lucid
 import { createSampleImageBlob } from '../utils/samples';
 
 const QUICK_PROMPTS = [
-  'open settings',
-  'where do I download this?',
+  'Open settings',
+  'Where do I download this?',
   'click the second blue button',
   'how do I change my password?',
   'I mean that option on the right',
@@ -110,7 +110,7 @@ export default function InstructionForm({
             <button
               type="button"
               className="btn-sample"
-              onClick={() => handleLoadSample('software-portal', 'where do I download this?')}
+              onClick={() => handleLoadSample('software-portal', 'Open settings')}
             >
               <ImageIcon size={14} />
               <span>Software Portal</span>
