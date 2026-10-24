@@ -32,6 +32,7 @@ export default function ExplanationCard({ detection }) {
         </div>
       </div>
 
+      {detection.next_step && <p className="explanation-body"><strong>{detection.next_step}</strong></p>}
       <p className="explanation-body" role="status">
         <strong>{detection.source === 'gemma' ? 'Gemma 4 · Live result' : detection.source === 'gemini' ? 'Gemini · Live result' : 'Mock / fallback · Predefined demo coordinates'}</strong>
       </p>

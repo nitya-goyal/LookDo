@@ -31,14 +31,15 @@ LookDo uses multimodal AI to ground that intent to a visible interface element a
 
 - Screenshot upload/paste
 - Natural-language intent
-- Voice-to-intent input
+- Voice input (voice-to-intent)
+- Guide Me mode — one next visible action, without conversation memory
 - Gemma 4 multimodal grounding
 - Normalized bounding-box highlighting
 - Structured explanation
 - Timeout/retry handling
 - Transparent fallback for built-in samples
 
-Browser `SpeechRecognition` (including Chromium's `webkitSpeechRecognition` prefix) converts speech into the existing intent field. Voice is an input method, not the AI reasoning layer: **Gemma 4 still performs the multimodal visual-semantic grounding**. Typed input remains supported. Recognition never submits automatically; review the text and click **Locate Element**. Unsupported browsers retain typed input, and microphone or recognition errors are shown without blocking typing.
+Browser `SpeechRecognition` (including Chromium's `webkitSpeechRecognition` prefix) converts speech into the existing intent field. Voice is an input method, not the AI reasoning layer: **Gemma 4 still performs the multimodal visual-semantic grounding**. Typed input remains supported. Recognition never submits automatically; review the text and click **Locate Element** or **Guide Me**. Unsupported browsers retain typed input, and microphone or recognition errors are shown without blocking typing.
 
 ## Architecture
 
@@ -109,6 +110,37 @@ Coordinates are normalized from 0 to 1 so overlays remain aligned when screensho
 3. **Understand** — Gemma 4 combines visual and language context.
 4. **Locate** — LookDo highlights the intended element.
 
+## Guide Me
+
+Guide Me identifies only the **next visible action** toward a task on the current screenshot. It returns a single `next_step` (displayed as **Step 1**), a target label/type, normalized bounding box, confidence, and a short instruction. It shares Locate mode's screenshot pipeline and overlay, without conversation memory or multi-step state.
+
+Featured example:
+
+```text
+Voice → "Where are the issues?"
+Screenshot → real LookDo GitHub repository page
+Gemma 4 → identifies the Issues tab
+LookDo → highlights Issues and returns Step 1: Click on Issues
+```
+
+## Real-world demo
+
+A successful live Guide Me run used a screenshot of the **real LookDo GitHub repository page**, not either predefined sample interface.
+
+| Input / result | Observed demo |
+| --- | --- |
+| Input method | Voice via browser SpeechRecognition |
+| Mode / intent | Guide Me / “Where are the issues?” |
+| Result source | **Gemma 4 · Live result — not fallback** |
+| Target | Issues (link) |
+| Displayed confidence | 100% (model-reported for this run, not an accuracy guarantee) |
+| Next step | **Step 1: Click on Issues** |
+| Normalized box | left `0.070`, top `0.070`, right `0.120`, bottom `0.110` |
+
+The returned bounding box correctly highlighted the Issues tab in this demo. Browser SpeechRecognition converted speech into text; **Gemma 4 performed the actual visual-semantic grounding** using the screenshot and intent together.
+
+![Live LookDo Guide Me demo: voice intent locates and highlights the GitHub Issues tab, with Step 1 and a Gemma 4 live-result label](docs/images/guide-me-github.png)
+
 ## Demo
 
 **Primary demo:** select **Software Portal**, use **“Open settings”**, and click **Locate Element**. Show the highlight and the result-source label.
@@ -172,7 +204,7 @@ npm run build
 
 These are planned concepts, **not implemented features**:
 
-- **Guide Me** — step-by-step interface navigation
+- Extended step-by-step guidance beyond the implemented single-step Guide Me mode
 - MediaPipe rough gaze/head-direction input
 - Combine gaze + speech: look toward something and say “open that”
 - DOM/OCR-assisted grounding for higher coordinate precision

@@ -12,6 +12,39 @@ from app.services.ai_service import GemmaAIService, MockAIService
 
 
 class DemoReliabilityTests(unittest.IsolatedAsyncioTestCase):
+    async def test_guide_reuses_locate_pipeline_and_returns_one_step(self):
+        service = GemmaAIService.__new__(GemmaAIService)
+        service.api_key = 'test'
+        service.model = 'gemma-4-31b-it'
+        payload = (await MockAIService().locate_element(b'', 'Open settings')).model_dump()
+        payload['suggested_action'] = 'Open Settings.'
+        generate = AsyncMock(side_effect=[NS(text='broken'), NS(text=json.dumps(payload))])
+        service._client = NS(aio=NS(models=NS(generate_content=generate)))
+        with patch('app.services.ai_service._downscale_image_for_gemma', return_value=b'image'):
+            result = await service.guide_element(b'image', 'How do I change my password?')
+        self.assertEqual(result.next_step, 'Step 1: Open Settings.')
+        self.assertEqual(result.source, 'gemma')
+        self.assertEqual(result.bounding_box.model_dump(), payload['bounding_box'])
+        self.assertEqual(generate.await_count, 2)
+        for call in generate.await_args_list:
+            self.assertEqual(call.kwargs['model'], service.model)
+            self.assertIn('NEXT visible action', call.kwargs['contents'][1])
+            self.assertIn('How do I change my password?', call.kwargs['contents'][1])
+
+    async def test_guide_route_preserves_sample_only_fallback(self):
+        for sample_id in ('account-settings', ''):
+            with patch('app.routes.locate.get_ai_service', return_value=MockAIService()):
+                image = UploadFile(filename='screen.png', file=io.BytesIO(b'image'))
+                if sample_id:
+                    result = await locate_element(instruction='How do I change my password?', image=image, sample_id=sample_id, mode='guide')
+                    self.assertEqual(result.source, 'mock')
+                    self.assertEqual(result.element_label, 'Change Password Link')
+                    self.assertTrue(result.next_step.startswith('Step 1:'))
+                else:
+                    with self.assertRaises(HTTPException) as caught:
+                        await locate_element(instruction='How do I change my password?', image=image, sample_id=sample_id, mode='guide')
+                    self.assertEqual(caught.exception.status_code, 503)
+
     async def test_mock_boxes_only_returned_for_built_in_samples(self):
         for sample_id in ('software-portal', 'account-settings', '', 'unknown'):
             with self.subTest(sample_id=sample_id):

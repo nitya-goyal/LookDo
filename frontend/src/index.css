@@ -274,6 +274,11 @@ a:focus-visible {
   background: rgba(56, 189, 248, 0.1);
 }
 
+.btn-sample[aria-pressed="true"] {
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
 /* Instruction Form */
 .instruction-section {
   display: flex;

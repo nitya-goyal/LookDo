@@ -15,6 +15,8 @@ export default function InstructionForm({
   onFileSelect,
   instruction,
   onInstructionChange,
+  mode,
+  onModeChange,
   onSubmit,
   isLoading,
   error,
@@ -200,6 +202,11 @@ export default function InstructionForm({
         </h2>
 
         <div className="instruction-section">
+          <div className="sample-buttons-grid" role="group" aria-label="Navigation mode">
+            <button type="button" className="btn-sample" aria-pressed={mode === 'locate'} disabled={isLoading} onClick={() => onModeChange('locate')}>Locate Element</button>
+            <button type="button" className="btn-sample" aria-pressed={mode === 'guide'} disabled={isLoading} onClick={() => onModeChange('guide')}>Guide Me</button>
+          </div>
+          {mode === 'guide' && <span className="dropzone-hint">Describe a task. LookDo highlights only the next visible action.</span>}
           <div className="instruction-input-wrap">
             <input
               type="text"
@@ -263,7 +270,7 @@ export default function InstructionForm({
             ) : (
               <>
                 <Sparkles size={18} />
-                <span>Locate Element</span>
+                <span>{mode === 'guide' ? 'Guide Me' : 'Locate Element'}</span>
               </>
             )}
           </button>

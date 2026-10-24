@@ -1,4 +1,5 @@
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from typing import Literal
 from app.schemas.detection import DetectionResult
 from app.services.ai_service import get_ai_service
 
@@ -10,6 +11,7 @@ async def locate_element(
     instruction: str = Form(..., description="Natural language intent/instruction from the user"),
     image: UploadFile = File(..., description="Screenshot image file"),
     sample_id: str = Form("", description="Built-in sample identifier; empty for uploads"),
+    mode: Literal["locate", "guide"] = Form("locate"),
 ):
     """
     Locates the most likely UI element described by the user's instruction in the provided screenshot.
@@ -38,7 +40,10 @@ async def locate_element(
     # Invoke AI Service
     ai_service = get_ai_service()
     try:
-        result = await ai_service.locate_element(image_bytes=image_bytes, instruction=instruction)
+        if mode == "guide":
+            result = await ai_service.guide_element(image_bytes=image_bytes, instruction=instruction)
+        else:
+            result = await ai_service.locate_element(image_bytes=image_bytes, instruction=instruction)
         if result.source == "mock" and sample_id not in ("software-portal", "account-settings"):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

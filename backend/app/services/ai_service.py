@@ -26,6 +26,26 @@ class BaseAIService(ABC):
     Subclasses can implement Mock, Gemini, Gemma, or other multimodal providers.
     """
 
+    async def guide_element(self, image_bytes: bytes, instruction: str) -> DetectionResult:
+        # Reuse the same model, validation, retries and fallback path as Locate.
+        guide_instruction = (
+            f"Guide Me task: {instruction}\n"
+            "Identify only the NEXT visible action on this current screenshot toward the task. "
+            "Target a control visible now, not a control on a future screen. "
+            "Return exactly one target using the existing JSON schema. "
+            "suggested_action must be one short instruction without a step number. "
+            "Do not provide multiple steps or assume any previous conversation."
+        )
+        result = await self.locate_element(image_bytes, guide_instruction)
+        if result.source == "mock":
+            # Mock keyword matching must see the task, not the guidance prompt.
+            was_fallback = result.explanation.startswith("[Mock fallback:")
+            result = await MockAIService().locate_element(image_bytes, instruction)
+            if was_fallback:
+                result.explanation = "[Mock fallback: live inference unavailable] " + result.explanation
+        result.next_step = f"Step 1: {result.suggested_action}"
+        return result
+
     @abstractmethod
     async def locate_element(self, image_bytes: bytes, instruction: str) -> DetectionResult:
         """

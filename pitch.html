@@ -35,6 +35,8 @@
     .step.last b { color:var(--green); }
     .arrow { display:grid; place-items:center; color:var(--cyan); font-size:18px; }
     .stack { margin-top:14px; text-align:center; font-family:ui-monospace,Consolas,monospace; font-size:12px; letter-spacing:.1px; color:var(--muted); }
+    .live-demo { margin-top:14px; padding:12px 15px; border:1px solid #315d55; border-radius:10px; background:#102a2866; }
+    .live-demo p { font-size:13px; }
     .bottom { display:grid; grid-template-columns:1.05fr 1.4fr; gap:28px; margin-top:20px; }
     .why { padding-right:15px; }
     .why p { font-size:14px; }
@@ -71,38 +73,44 @@
     </section>
 
     <section class="architecture" aria-labelledby="architecture-title">
-      <div class="section-top"><h2 id="architecture-title">From intent to location</h2><span class="small">“Open settings”</span></div>
+      <div class="section-top"><h2 id="architecture-title">From intent to location</h2><span class="small">Guide Me · “Where are the issues?”</span></div>
       <ol class="pipeline">
-        <li class="step"><b>01 / SEE</b><h3>Screenshot</h3><p>Upload or paste<br>the interface</p></li>
+        <li class="step"><b>01 / SEE</b><h3>Screenshot</h3><p>Real LookDo GitHub<br>repository screenshot</p></li>
         <li class="arrow" aria-hidden="true">→</li>
-        <li class="step"><b>02 / ASK</b><h3>Voice / Text Intent</h3><p>Describe the action<br>in your own words</p></li>
+        <li class="step"><b>02 / ASK</b><h3>Voice / Text Intent</h3><p>“Where are<br>the issues?”</p></li>
         <li class="arrow" aria-hidden="true">→</li>
         <li class="step core"><b>03 / UNDERSTAND</b><h3>Gemma 4</h3><p>Visual-Semantic<br>Grounding</p></li>
         <li class="arrow" aria-hidden="true">→</li>
         <li class="step"><b>04 / STRUCTURE</b><h3>Validated JSON</h3><p>Label + Type + Bounding Box + Confidence + Action</p></li>
         <li class="arrow" aria-hidden="true">→</li>
-        <li class="step last"><b>05 / LOCATE</b><h3>Highlighted UI Element</h3><p>A visual target +<br>suggested action</p></li>
+        <li class="step last"><b>05 / LOCATE</b><h3>Issues highlighted</h3><p>Step 1:<br>Click on Issues</p></li>
       </ol>
       <p class="stack">React + Vite → FastAPI → Gemma 4 → Structured JSON → Overlay</p>
+    </section>
+
+    <section class="live-demo" aria-label="Featured real-world demo">
+      <h2>Featured live demo · Real GitHub page · Not a sample</h2>
+      <p><strong>Voice: “Where are the issues?”</strong> → GitHub screenshot → <strong>Issues highlighted</strong> · Gemma 4 live result, not fallback · 100% model-reported confidence in this run.</p>
+      <p>Step 1: <strong>Click on Issues</strong> · Normalized box: left 0.070 / top 0.070 / right 0.120 / bottom 0.110.</p>
     </section>
 
     <section class="bottom" aria-label="Technical rationale and feature status">
       <div class="why">
         <h2>Why Gemma 4?</h2>
         <p>Gemma receives <strong>image + language together</strong> and resolves which visible UI element best matches the user's intent. Its structured coordinates drive the highlight.</p>
-        <p class="note">Voice is input, not the reasoning layer. Browser SpeechRecognition fills the intent field; the user reviews it and clicks Locate Element.</p>
+        <p class="note">Voice is input, not the reasoning layer. Browser SpeechRecognition fills the intent field; the user reviews it and clicks Locate Element or Guide Me.</p>
       </div>
       <div class="status">
         <div><h2>Implemented</h2><ul>
           <li><span class="check">✓</span>Screenshot</li>
           <li><span class="check">✓</span>Text intent</li>
           <li><span class="check">✓</span>Voice intent</li>
+          <li><span class="check">✓</span>Guide Me (single step)</li>
           <li><span class="check">✓</span>Gemma 4</li>
           <li><span class="check">✓</span>Target highlight</li>
           <li><span class="check">✓</span>Reliability handling</li>
         </ul></div>
         <div class="next"><h2>Next / Future work</h2><ul>
-          <li><span class="circle">○</span>Guide Me</li>
           <li><span class="circle">○</span>Gaze/head direction</li>
           <li><span class="circle">○</span>“Open that”</li>
           <li><span class="circle">○</span>DOM/OCR precision</li>

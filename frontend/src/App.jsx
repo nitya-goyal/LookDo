@@ -9,6 +9,7 @@ export default function App() {
   const [sampleId, setSampleId] = useState('');
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [instruction, setInstruction] = useState('Open settings');
+  const [mode, setMode] = useState('locate');
   const [detection, setDetection] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -105,6 +106,7 @@ export default function App() {
       formData.append('image', selectedFile);
       formData.append('instruction', instruction.trim());
       formData.append('sample_id', sampleId);
+      formData.append('mode', mode);
 
       // Attempt endpoint via proxy, fallback to direct port 8000 if needed
       let res;
@@ -152,6 +154,12 @@ export default function App() {
           onFileSelect={handleFileSelect}
           instruction={instruction}
           onInstructionChange={setInstruction}
+          mode={mode}
+          onModeChange={(nextMode) => {
+            setMode(nextMode);
+            setDetection(null);
+            setError(null);
+          }}
           onSubmit={handleSubmit}
           isLoading={isLoading}
           error={error}
