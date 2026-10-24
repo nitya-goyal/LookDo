@@ -1,0 +1,31 @@
+# LookDo .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Secrets / environment
+.env
+*.env
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scratch / dev test files
+scratch_*.py
+test_ui_settings.png
