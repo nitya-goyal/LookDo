@@ -15,7 +15,7 @@ Modern interfaces can be visually dense and difficult to navigate, especially fo
 The user provides:
 
 - A screenshot
-- Natural-language intent
+- Natural-language intent, typed or spoken
 
 For example:
 
@@ -24,6 +24,21 @@ For example:
 - “How do I change my password?”
 
 LookDo uses multimodal AI to ground that intent to a visible interface element and highlights the result, with a reason and suggested action.
+
+## Feature status
+
+**Implemented**
+
+- Screenshot upload/paste
+- Natural-language intent
+- Voice-to-intent input
+- Gemma 4 multimodal grounding
+- Normalized bounding-box highlighting
+- Structured explanation
+- Timeout/retry handling
+- Transparent fallback for built-in samples
+
+Browser `SpeechRecognition` (including Chromium's `webkitSpeechRecognition` prefix) converts speech into the existing intent field. Voice is an input method, not the AI reasoning layer: **Gemma 4 still performs the multimodal visual-semantic grounding**. Typed input remains supported. Recognition never submits automatically; review the text and click **Locate Element**. Unsupported browsers retain typed input, and microphone or recognition errors are shown without blocking typing.
 
 ## Architecture
 
@@ -90,7 +105,7 @@ Coordinates are normalized from 0 to 1 so overlays remain aligned when screensho
 ## How it works
 
 1. **See** — upload/paste an interface screenshot.
-2. **Ask** — describe what you want to do.
+2. **Ask** — type your intent, or click the microphone and speak; review the text before submitting.
 3. **Understand** — Gemma 4 combines visual and language context.
 4. **Locate** — LookDo highlights the intended element.
 
@@ -99,6 +114,8 @@ Coordinates are normalized from 0 to 1 so overlays remain aligned when screensho
 **Primary demo:** select **Software Portal**, use **“Open settings”**, and click **Locate Element**. Show the highlight and the result-source label.
 
 **Secondary demo:** on the same sample, ask **“Where do I download this?”**.
+
+**Voice demo:** click the microphone beside the intent field, allow microphone access, say **“Open settings”**, review the recognized text, then click **Locate Element**. Browser recognition availability varies; typed input always remains available.
 
 The second built-in sample, **Settings Console**, remains available with its password-change example. Uploaded real-world screenshots are also supported through upload, drag-and-drop, or Ctrl+V paste. If live inference fails for an upload, LookDo shows a retry message and draws no predefined mock box. Built-in samples alone can use labeled mock fallback.
 
@@ -156,11 +173,14 @@ npm run build
 These are planned concepts, **not implemented features**:
 
 - **Guide Me** — step-by-step interface navigation
-- Voice commands
 - MediaPipe rough gaze/head-direction input
 - Combine gaze + speech: look toward something and say “open that”
 - DOM/OCR-assisted grounding for higher coordinate precision
-- Optional browser extension / direct interaction
+- Browser action execution / optional browser extension
+
+## Judging visual
+
+Open [pitch.html](pitch.html) directly from your local checkout for a one-page technical overview. It uses inline HTML/CSS, with no dependencies or network assets.
 
 ## Open source
 

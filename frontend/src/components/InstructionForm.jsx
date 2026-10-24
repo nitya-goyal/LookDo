@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { UploadCloud, Sparkles, Image as ImageIcon, CornerDownLeft } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { UploadCloud, Sparkles, Image as ImageIcon, Mic } from 'lucide-react';
 import { createSampleImageBlob } from '../utils/samples';
 
 const QUICK_PROMPTS = [
@@ -21,6 +21,71 @@ export default function InstructionForm({
 }) {
   const fileInputRef = useRef(null);
   const [isDragActive, setIsDragActive] = useState(false);
+  const recognitionRef = useRef(null);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState('');
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  useEffect(() => () => {
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      recognition.onstart = recognition.onresult = recognition.onerror = recognition.onend = null;
+      recognition.abort();
+    }
+  }, []);
+
+  const handleVoiceInput = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+    if (!SpeechRecognition) return;
+
+    let receivedText = false;
+    let failed = false;
+    try {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = 'en-US';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.onstart = () => setVoiceMessage('Listening...');
+      recognition.onresult = (event) => {
+        const transcript = event.results[0]?.[0]?.transcript?.trim();
+        if (transcript) {
+          receivedText = true;
+          onInstructionChange(transcript);
+          setVoiceMessage('Voice captured. Click Locate Element when ready.');
+        }
+      };
+      recognition.onerror = (event) => {
+        failed = true;
+        setIsListening(false);
+        const messages = {
+          'not-allowed': 'Microphone permission denied. Allow microphone access or type your instruction.',
+          'service-not-allowed': 'Speech recognition is blocked by this browser. Please type your instruction.',
+          'audio-capture': 'Microphone unavailable. Please type your instruction.',
+          'no-speech': 'No speech detected. Try again or type your instruction.',
+          network: 'Speech recognition connection failed. Try again or type your instruction.',
+          aborted: 'Listening stopped. You can type or try again.',
+        };
+        setVoiceMessage(messages[event.error] || 'Speech recognition failed. Try again or type your instruction.');
+      };
+      recognition.onend = () => {
+        recognitionRef.current = null;
+        setIsListening(false);
+        if (!receivedText && !failed) setVoiceMessage('Listening ended. Try again or type your instruction.');
+      };
+      setIsListening(true);
+      setVoiceMessage('Listening...');
+      // Starting from this click lets the browser request microphone permission.
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setIsListening(false);
+      setVoiceMessage('Unable to start speech recognition. Please type your instruction.');
+    }
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -147,7 +212,20 @@ export default function InstructionForm({
               aria-label="Natural language instruction for UI element"
               autoComplete="off"
             />
+            <button
+              type="button"
+              className="btn-sample voice-button"
+              onClick={handleVoiceInput}
+              disabled={!SpeechRecognition || isLoading}
+              aria-label={isListening ? 'Stop listening' : 'Speak your instruction'}
+              aria-pressed={isListening}
+              title={SpeechRecognition ? 'Speak your instruction' : 'Speech recognition unavailable in this browser; type your instruction'}
+            >
+              <Mic size={18} aria-hidden="true" />
+              {isListening && <span>Listening...</span>}
+            </button>
           </div>
+          {voiceMessage && <span className="dropzone-hint" role="status">{voiceMessage}</span>}
 
           <span className="quick-prompts-label">Quick suggestions:</span>
           <div className="quick-prompts-list" role="list">

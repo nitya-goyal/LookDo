@@ -283,6 +283,27 @@ a:focus-visible {
 
 .instruction-input-wrap {
   position: relative;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.instruction-input-wrap .instruction-input {
+  min-width: 0;
+  flex: 1;
+}
+
+.voice-button {
+  flex-shrink: 0;
+}
+
+.voice-button[aria-pressed="true"] {
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+.voice-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .instruction-input {

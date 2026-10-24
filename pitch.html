@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LookDo: screenshot and intent to a highlighted UI control, powered by Gemma 4.">
+  <title>LookDo — Judging Overview</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1120; --panel:#111c2e; --line:#26364d; --text:#f1f5f9; --muted:#b3c2d5; --cyan:#57d7f7; --green:#6ee7b7; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(ellipse at 85% 0%,#123046 0%,transparent 50%),var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1280px; margin:auto; padding:28px 36px 22px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:24px; padding-bottom:20px; border-bottom:1px solid var(--line); }
+    .eyebrow { color:var(--cyan); font-size:11px; font-weight:750; letter-spacing:2px; text-transform:uppercase; margin:0 0 7px; }
+    h1 { display:flex; gap:13px; align-items:center; font-size:48px; letter-spacing:-2px; line-height:1; margin:0; }
+    .mark { width:42px; height:29px; border:2px solid var(--cyan); border-radius:70% 15%; transform:rotate(35deg); display:inline-grid; place-items:center; }
+    .mark::after { content:""; width:12px; height:12px; border-radius:50%; background:var(--cyan); box-shadow:0 0 18px #57d7f766; }
+    .tagline { font-size:19px; line-height:1.4; margin:12px 0 0; color:var(--muted); }
+    .badge { border:1px solid #386175; border-radius:999px; padding:8px 14px; color:var(--cyan); font-size:12px; white-space:nowrap; }
+    .intro { display:grid; grid-template-columns:1fr 1.2fr; gap:32px; padding:20px 0; }
+    h2 { font-size:11px; text-transform:uppercase; letter-spacing:1.8px; margin:0 0 8px; color:var(--cyan); }
+    p { margin:0; font-size:15px; line-height:1.55; color:var(--muted); }
+    strong { color:var(--text); font-weight:650; }
+    .architecture { padding:20px; border:1px solid var(--line); border-radius:16px; background:#101b2dd9; }
+    .section-top { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:14px; }
+    .section-top h2 { margin:0; }
+    .small { font-size:11px; color:var(--muted); }
+    .pipeline { display:grid; grid-template-columns:1fr 24px 1.1fr 24px 1.5fr 24px 1.55fr 24px 1.1fr; align-items:stretch; list-style:none; padding:0; margin:0; }
+    .step { padding:15px 13px; border:1px solid var(--line); border-radius:10px; background:var(--bg); min-width:0; }
+    .step b { display:block; font-size:10px; letter-spacing:1.8px; color:var(--cyan); margin-bottom:12px; }
+    .step h3 { font-size:16px; line-height:1.35; margin:0 0 5px; font-weight:650; }
+    .step p { font-size:12px; line-height:1.5; }
+    .step.core { border-color:#438fa7; background:linear-gradient(145deg,#133348,#10202f); }
+    .step.last { border-color:#315d55; }
+    .step.last b { color:var(--green); }
+    .arrow { display:grid; place-items:center; color:var(--cyan); font-size:18px; }
+    .stack { margin-top:14px; text-align:center; font-family:ui-monospace,Consolas,monospace; font-size:12px; letter-spacing:.1px; color:var(--muted); }
+    .bottom { display:grid; grid-template-columns:1.05fr 1.4fr; gap:28px; margin-top:20px; }
+    .why { padding-right:15px; }
+    .why p { font-size:14px; }
+    .note { border-left:2px solid var(--cyan); padding-left:12px; margin-top:12px; font-size:12px!important; }
+    .status { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+    .status h2 { color:var(--green); }
+    .status .next h2 { color:var(--muted); }
+    .status ul { list-style:none; margin:0; padding:0; display:grid; gap:5px; }
+    .status li { font-size:13px; line-height:1.4; color:var(--muted); }
+    .check { color:var(--green); margin-right:7px; }
+    .circle { color:#7f96b1; margin-right:7px; }
+    .reliability { margin-top:20px; padding:11px 14px; border:1px solid var(--line); border-radius:9px; text-align:center; color:var(--muted); font-size:12px; }
+    .reliability span { color:var(--cyan); padding:0 10px; }
+    footer { display:flex; justify-content:space-between; gap:12px; margin-top:10px; font-size:10px; line-height:1.5; color:#8fa3bb; }
+    @media (min-width:1050px) and (max-height:760px) { main { padding-top:18px; } header { padding-bottom:14px; } h1 { font-size:40px; } .intro { padding:14px 0; } .bottom { margin-top:14px; } .step { padding:12px; } .reliability { margin-top:14px; } }
+    @media (max-width:850px) { main { padding:24px; } header { align-items:flex-start; } .badge { display:none; } .intro,.bottom { grid-template-columns:1fr; gap:18px; } .pipeline { grid-template-columns:1fr; gap:7px; } .arrow { transform:rotate(90deg); height:14px; } .step b { margin-bottom:5px; } .stack { line-height:1.8; } footer { flex-direction:column; } }
+    @media print { body { background:var(--bg); print-color-adjust:exact; -webkit-print-color-adjust:exact; } main { padding:10px; } .architecture,.bottom { break-inside:avoid; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">Multimodal UI Navigation &amp; Element Locator</p>
+        <h1><span class="mark" aria-hidden="true"></span>LookDo</h1>
+        <p class="tagline">Tell LookDo what you want to do. <strong>It finds where to do it.</strong></p>
+      </div>
+      <div class="badge">Working MVP · Powered by Gemma 4</div>
+    </header>
+
+    <section class="intro" aria-label="Problem and solution">
+      <div><h2>The problem</h2><p>Dense interfaces force users to know exactly <strong>where controls are.</strong></p></div>
+      <div><h2>The solution</h2><p><strong>Speak or type an intent + provide a screenshot</strong> → LookDo visually grounds the intended control.</p></div>
+    </section>
+
+    <section class="architecture" aria-labelledby="architecture-title">
+      <div class="section-top"><h2 id="architecture-title">From intent to location</h2><span class="small">“Open settings”</span></div>
+      <ol class="pipeline">
+        <li class="step"><b>01 / SEE</b><h3>Screenshot</h3><p>Upload or paste<br>the interface</p></li>
+        <li class="arrow" aria-hidden="true">→</li>
+        <li class="step"><b>02 / ASK</b><h3>Voice / Text Intent</h3><p>Describe the action<br>in your own words</p></li>
+        <li class="arrow" aria-hidden="true">→</li>
+        <li class="step core"><b>03 / UNDERSTAND</b><h3>Gemma 4</h3><p>Visual-Semantic<br>Grounding</p></li>
+        <li class="arrow" aria-hidden="true">→</li>
+        <li class="step"><b>04 / STRUCTURE</b><h3>Validated JSON</h3><p>Label + Type + Bounding Box + Confidence + Action</p></li>
+        <li class="arrow" aria-hidden="true">→</li>
+        <li class="step last"><b>05 / LOCATE</b><h3>Highlighted UI Element</h3><p>A visual target +<br>suggested action</p></li>
+      </ol>
+      <p class="stack">React + Vite → FastAPI → Gemma 4 → Structured JSON → Overlay</p>
+    </section>
+
+    <section class="bottom" aria-label="Technical rationale and feature status">
+      <div class="why">
+        <h2>Why Gemma 4?</h2>
+        <p>Gemma receives <strong>image + language together</strong> and resolves which visible UI element best matches the user's intent. Its structured coordinates drive the highlight.</p>
+        <p class="note">Voice is input, not the reasoning layer. Browser SpeechRecognition fills the intent field; the user reviews it and clicks Locate Element.</p>
+      </div>
+      <div class="status">
+        <div><h2>Implemented</h2><ul>
+          <li><span class="check">✓</span>Screenshot</li>
+          <li><span class="check">✓</span>Text intent</li>
+          <li><span class="check">✓</span>Voice intent</li>
+          <li><span class="check">✓</span>Gemma 4</li>
+          <li><span class="check">✓</span>Target highlight</li>
+          <li><span class="check">✓</span>Reliability handling</li>
+        </ul></div>
+        <div class="next"><h2>Next / Future work</h2><ul>
+          <li><span class="circle">○</span>Guide Me</li>
+          <li><span class="circle">○</span>Gaze/head direction</li>
+          <li><span class="circle">○</span>“Open that”</li>
+          <li><span class="circle">○</span>DOM/OCR precision</li>
+          <li><span class="circle">○</span>Direct browser actions</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <div class="reliability">20s model timeout <span>•</span> one retry <span>•</span> transparent fallback <span>•</span> normalized coordinates</div>
+    <footer><span>Fallback is sample-only. Real uploads show a retry state if inference is unavailable.</span><span>Static screenshot guidance · No automatic clicks</span></footer>
+  </main>
+</body>
+</html>
